@@ -26,9 +26,9 @@ using namespace std;
 
 enum OP_ID
 {
-    OP_LIST = 0,
-    OP_UP = 1,
-    OP_DOWN = 2,
+    OP_LIST = 0, // 列出文件
+    OP_UP = 1,   // 上传
+    OP_DOWN = 2, // 下载
 };
 
 struct Package // 传输包
@@ -69,8 +69,8 @@ public:
     bool recvFileAndWrite(const char *filename, SOCKET sock); // 接收文件并存入FTP服务器中
     bool sendFileList(SOCKET sock);
     void readfileInfo(ostringstream &oss, const string &path);
-    string& setprecision(string &str, int precision  = 3);
-    void print_c(const string &msg, int color, bool flag = false);          // 打印信息
+    string &setprecision(string &str, int precision = 3);
+    void print_c(const string &msg, int color, bool flag = false); // 打印信息
 };
 
 class FtpServer : public FtpUtil // FTP服务器
@@ -93,5 +93,5 @@ public:
     bool down(shared_ptr<Client> client);       // 下载文件
     bool up(shared_ptr<Client> client);         // 上传文件
     void disconnectClient(SOCKET sc);           // 断开客户端连接
-    bool list(shared_ptr<Client> client);                // 获取文件列表
+    bool list(shared_ptr<Client> client);       // 获取文件列表
 };

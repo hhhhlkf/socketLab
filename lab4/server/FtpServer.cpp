@@ -8,12 +8,14 @@ void FtpUtil::Init()
     s += u8"║                                          ║\n";
     s += u8"╚══════════════════════════════════════════╝";
     print_c(s, 3);
+    // 初始化 Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         WSACleanup();
         error("WSAStartup failed");
     }
     print_c("WSAStartup success", 2);
+    // 获取主机名
     if (gethostname(hostname, HOSTNAME_LENGTH) == SOCKET_ERROR)
     {
         error("gethostname failed");
@@ -31,7 +33,6 @@ int FtpUtil::createSocket()
         error("socket error", WSAGetLastError());
     else
         print_c("socket success", 2);
-    // cout << "socket success" << endl;
     bool opt = 1;
     int flag = setsockopt(socketDiscriptor, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(int));
     if (flag == SOCKET_ERROR)
@@ -44,7 +45,6 @@ int FtpUtil::createSocket()
 
 void FtpUtil::error(const char *msg, ...)
 {
-    // perror(NULL);
     string error = "error: ";
     error += msg;
     print_c(error, 4);
@@ -59,17 +59,16 @@ bool FtpUtil::fileExists(const char *filename)
 
 bool FtpUtil::readFileAndSend(const char *filename, SOCKET sock)
 {
+    // 传输包
     Package package; // 传输包
     package.footer = 0;
 
-    // cout << "Opening the file for reading ..." << endl;
     print_c("Opening the file for reading ...", 14);
     ifstream ifile(filename, ios::in | ios::binary); // 以二进制方式打开文件
-
+    // 判断文件是否打开成功
     if (!ifile)
     {
         print_c("Error opening the file to read :(", 4);
-        // cout << "Error opening the file to read :(" << endl;
         return false;
     }
     // 读取文件并发送
@@ -81,23 +80,21 @@ bool FtpUtil::readFileAndSend(const char *filename, SOCKET sock)
         send(sock, (char *)&package, sizeof(package), 0);
     }
     print_c("File sent successfully!", 2);
-    // cout << "File sent successfully!" << endl;
     ifile.close();
     return true;
 }
 
 bool FtpUtil::recvFileAndWrite(const char *filename, SOCKET sock)
 {
+    // 传输包
     Package package; // 传输包
     package.footer = 0;
     print_c("Opening the file for writing ...", 14);
-    // cout << "Opening the file for writing ..." << endl;
     ofstream ofile(filename, ios::out | ios::binary); // 以二进制方式打开文件
 
     if (!ofile)
     {
         print_c("Error opening the file to write :(", 4);
-        // cout << "Error opening the file to write :(" << endl;
         return false;
     }
     // 接收文件并写入
@@ -111,24 +108,24 @@ bool FtpUtil::recvFileAndWrite(const char *filename, SOCKET sock)
         else
         {
             ofile.write(package.buffer, package.footer);
-            // cout << "last packet sent of size: " << p.footer << endl;
             break;
         }
     }
     print_c("File received successfully!", 2);
-    // cout << "File received successfully!" << endl;
     ofile.close();
     return true;
 }
 
 bool FtpUtil::sendFileList(SOCKET sock)
 {
+
     Package package; // 传输包
     package.footer = 0;
     print_c("Sending file list ...", 14);
     vector<string> files;
     string path = ".\\*.*";
     WIN32_FIND_DATAA fileData;
+    // 打开当前路径
     HANDLE hFind = FindFirstFileA(path.c_str(), &fileData);
     ostringstream oss;
     if (hFind == INVALID_HANDLE_VALUE)
@@ -136,6 +133,7 @@ bool FtpUtil::sendFileList(SOCKET sock)
         print_c("Error opening the file to write :(", 4);
         return false;
     }
+    // 打印表头
     oss << setw(25) << left << "name" << setw(15) << right << "size" << setw(30) << right << "last revise" << endl;
     print_c(oss.str(), 5, true);
     files.push_back(oss.str());
@@ -146,13 +144,15 @@ bool FtpUtil::sendFileList(SOCKET sock)
         {
             readfileInfo(oss, ".\\" + string(fileData.cFileName));
             files.push_back(oss.str());
+            // 打印出当前路径的所有文件的信息包括文件名、文件大小、文件最后修改时间
             print_c(oss.str(), 13, true);
             oss.str("");
         }
 
     } while (FindNextFileA(hFind, &fileData) != 0);
-    // 打印出当前路径的所有文件
+    // 关闭当前路径
     FindClose(hFind);
+    // 发送文件列表
     for (int i = 0; i < files.size() - 1; i++)
     {
         memset(package.buffer, 0, BUFFER_SIZE);
@@ -162,7 +162,7 @@ bool FtpUtil::sendFileList(SOCKET sock)
     }
     memset(package.buffer, 0, BUFFER_SIZE);
     strcpy(package.buffer, files[files.size() - 1].c_str());
-    package.footer = 0;
+    package.footer = 0; // 传输结束
     send(sock, (char *)&package, sizeof(package), 0);
     return true;
 }
@@ -204,6 +204,7 @@ void FtpUtil::readfileInfo(ostringstream &oss, const string &path)
         }
         else
             sizeString = to_string(fileSize) + " B";
+        // 将文件名、文件大小、文件最后修改时间写入 oss
         oss << setw(25) << left << filename << setw(15) << right << sizeString << setw(30) << right << fileTime << endl;
         FindClose(hFind);
     }
@@ -241,7 +242,6 @@ FtpServer::FtpServer()
     }
     else
         print_c("Socket Bound to port : " + to_string(LISTEN_PORT), 14);
-    // cout << "Socket Bound to port : " << LISTEN_PORT << endl;
 
     // 监听套接字
     debug = listen(sock, MAX_CLIENT_NUM);
@@ -249,9 +249,7 @@ FtpServer::FtpServer()
         error("listen failed", WSAGetLastError());
     else
         print_c("Server Listen mode : " + to_string(debug), 14);
-    // cout << "Server Listen mode : " << debug << endl;
     print_c("Server is ready to accept connections!", 2);
-    // cout << "Server is ready to accept connections!" << endl;
 
     FD_ZERO(&clientSet);      // 设置套接字集，将监听套接字加入集合
     FD_SET(sock, &clientSet); // 监听套接字不需要加入set集合中
@@ -262,32 +260,32 @@ FtpServer::~FtpServer()
 {
     WSACleanup();
     print_c("Server is closed!", 14);
-    // cout << "Server is closed!" << endl;
 }
 
 void FtpServer::recvNewJob()
 {
+    // 用于接收客户端的连接
     fd_set readfds;
     FD_ZERO(&readfds);
     readfds = clientSet;
     print_c("Waiting for new job ...", 14);
-    // cout << "Waiting for new job ..." << endl;
+    // 用于接收客户端的连接
     int act = select(0, &readfds, NULL, NULL, NULL);
     if (act < 0)
         error("select failed", WSAGetLastError());
+    // 如果有新的客户端连接
     if (FD_ISSET(sock, &readfds))
     {
         print_c("New client is coming!", 14);
-        // cout << "New client is coming!" << endl;
         SOCKET sc = acceptClient();
         if (sc == SOCKET_ERROR)
         {
             print_c("Client connection failed!", 4);
-            // cout << "Client connection failed!" << endl;
             return;
         }
         FD_SET(sc, &clientSet);
     }
+    // 循环遍历客户端套接字集合，查看是否有客户端发送文件
     for (auto it = clientSockets.begin(); it != clientSockets.end(); it++)
     {
         if (FD_ISSET(it->first, &readfds))
@@ -295,7 +293,6 @@ void FtpServer::recvNewJob()
             if (!getFile(it->first))
             {
                 print_c("Client connection failed!", 4);
-                // cout << "Client connection failed!" << endl;
                 return;
             }
             handleFile(it->second);
@@ -306,21 +303,22 @@ void FtpServer::recvNewJob()
 
 SOCKET FtpServer::acceptClient()
 {
+    // 如果客户端数量已满，拒绝连接
     if (clientSockets.size() > MAX_CLIENT_NUM)
     {
         print_c("Client number is full!", 4);
-        // cout << "Client number is full!" << endl;
         return SOCKET_ERROR;
     }
     Client client;
     auto cli = make_shared<Client>(client);
     int size = sizeof(struct sockaddr);
+    // 接收客户端连接
     SOCKET sc = accept(sock, (struct sockaddr *)&cli->addr, &size);
     if (sc != INVALID_SOCKET && sc != 0)
     {
         cli->sc = sc;
+        // 将客户端套接字加入集合
         clientSockets.insert(pair<SOCKET, shared_ptr<Client>>(sc, cli));
-        // FD_SET(sc, &clientSet);
         maxfd = maxfd > sc ? maxfd : sc;
         return sc;
     }
@@ -329,6 +327,7 @@ SOCKET FtpServer::acceptClient()
 
 bool FtpServer::getFile(SOCKET sc)
 {
+    // 接收客户端发送的文件信息
     File file;
     dbug = recv(sc, (char *)&file, sizeof(File), 0);
     if (dbug < 0)
@@ -336,17 +335,18 @@ bool FtpServer::getFile(SOCKET sc)
         error("recv failed", WSAGetLastError());
         return false;
     }
-    else if (dbug == 0)
+    else if (dbug == 0) // 客户端断开连接，从集合中删除
     {
         disconnectClient(sc);
         return false;
     }
+    // 打印客户端请求信息
     string s = "Client request to ";
     s += file.opId == OP_UP ? "upload" : (file.opId == OP_DOWN ? "download" : "list");
     s += " file: ";
     s += file.filename;
     print_c(s, 14);
-
+    // 将客户端请求信息保存到客户端结构体中
     clientSockets[sc]->file.opId = file.opId;
     strcpy(clientSockets[sc]->file.filename, file.filename);
     return true;
@@ -354,6 +354,7 @@ bool FtpServer::getFile(SOCKET sc)
 
 bool FtpServer::handleFile(shared_ptr<Client> client)
 {
+    // 根据客户端请求信息，执行相应操作
     if (client->file.opId == OP_UP)
     {
         return up(client);
@@ -371,29 +372,24 @@ bool FtpServer::handleFile(shared_ptr<Client> client)
 
 bool FtpServer::down(shared_ptr<Client> client)
 {
+    // 发送客户端准备好接收文件的状态码
     print_c("Sending client ready state for download", 14);
-    // cout << "Sending client ready state for download" << endl;
     char rdyState[2] = "d"; // 状态码为d，表示服务器准备好接收文件
-
+    // 发送状态码
     dbug = send(client->sc, rdyState, sizeof(rdyState), 0); // 发送状态码
-
+    // 读取文件并发送
     bool is_send = readFileAndSend(client->file.filename, client->sc); // 读取文件并发送
     if (!is_send)
     {
         print_c("File sending failed", 4);
-        // cout << "File sending failed" << endl;
         return false;
     }
-    // dbug = recv(client->sc, rdyState, sizeof(rdyState), 0); // 接收客户端的状态码
-    // if (dbug < 0)
-    //     cout << "Client disconnected" << endl;
     return true;
 }
 
 bool FtpServer::up(shared_ptr<Client> client)
 {
     print_c("Sending client ready state for upload", 14);
-    // cout << "Sending client ready state for upload" << endl;
     char rdyState[2] = "u";                                 // 状态码为u，表示服务器准备好接收文件
     dbug = send(client->sc, rdyState, sizeof(rdyState), 0); // 发送状态码
 
@@ -401,7 +397,6 @@ bool FtpServer::up(shared_ptr<Client> client)
     if (!is_recv)
     {
         print_c("File receiving failed", 4);
-        // cout << "File receiving failed" << endl;
         return false;
     }
     return true;
@@ -418,7 +413,6 @@ bool FtpServer::list(shared_ptr<Client> client)
     if (!is_send)
     {
         print_c("File list sending failed", 4);
-        // cout << "File list sending failed" << endl;
         return false;
     }
     return false;
@@ -426,8 +420,8 @@ bool FtpServer::list(shared_ptr<Client> client)
 
 void FtpServer::disconnectClient(SOCKET sc)
 {
+    // 客户端断开连接，从集合中删除
     print_c("Client disconnected!", 14);
-    // cout << "Client disconnected!" << endl;
     closesocket(sc);
     FD_CLR(sc, &clientSet);
     clientSockets.erase(sc);
@@ -435,26 +429,29 @@ void FtpServer::disconnectClient(SOCKET sc)
 
 void FtpUtil::print_c(const string &msg, int color, bool isEndl)
 {
+    // 给控制台设置颜色
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hConsole, color);
     string emoji = "";
+    // 4: red, 14: yellow, 2: green, 13: purple
     switch (color)
     {
     case 4:
-        emoji = u8"💀 ";
+        emoji = u8"💀 "; // u8"🔴 ";
         break;
     case 14:
-        emoji = u8"💡 ";
+        emoji = u8"💡 "; // u8"🟡 ";
         break;
     case 2:
-        emoji = u8"🔋 ";
+        emoji = u8"🔋 "; // u8"🟢 ";
         break;
     case 13:
-        emoji = u8"📄 ";
+        emoji = u8"📄 "; // u8"🟣 ";
         break;
     default:
         break;
     }
+    // 判断是否换行
     if (!isEndl)
         cout << emoji << msg << endl;
     else
@@ -465,7 +462,9 @@ void FtpUtil::print_c(const string &msg, int color, bool isEndl)
 int main()
 {
     int whileFlag = 1;
+    // 创建FTP服务器对象
     unique_ptr<FtpServer> ftpServer(new FtpServer());
+    // 初始化服务器
     while (whileFlag)
     {
         ftpServer->recvNewJob();

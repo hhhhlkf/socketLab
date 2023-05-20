@@ -15,14 +15,12 @@ void FtpUtil::Init()
         error("WSAStartup failed");
     }
     print_c("WSAStartup success", 11);
-    // cout << "WSAStartup success" << endl;
 
     if (gethostname(hostname, HOSTNAME_LENGTH) == SOCKET_ERROR)
     {
         error("gethostname failed");
     }
     print_c("hostname: " + string(hostname), 14);
-    // cout << "hostname: " << hostname << endl;
 }
 
 int FtpUtil::createSocket()
@@ -35,9 +33,7 @@ int FtpUtil::createSocket()
         error("socket error", WSAGetLastError());
     else
         print_c("socket success", 11);
-    // cout << "socket success" << endl;
     bool opt = 1;
-    // int flag = setsockopt(socketDiscriptor, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(int));
     return socketDiscriptor;
 }
 
@@ -72,13 +68,11 @@ bool FtpUtil::readFileAndSend(const char *filename, SOCKET sock)
     package.footer = 0;
 
     print_c("Opening the file for reading ...", 14);
-    // cout << "Opening the file for reading ..." << endl;
     ifstream ifile(filename, ios::in | ios::binary); // 以二进制方式打开文件
 
     if (!ifile)
     {
         print_c("Error opening the file to read :(", 12);
-        // cout << "Error opening the file to read :(" << endl;
         return false;
     }
     // 读取文件并发送
@@ -90,7 +84,6 @@ bool FtpUtil::readFileAndSend(const char *filename, SOCKET sock)
         send(sock, (char *)&package, sizeof(package), 0);
     }
     print_c("File sent successfully!", 11);
-    // cout << "File sent successfully!" << endl;
     ifile.close();
     return true;
 }
@@ -101,13 +94,11 @@ bool FtpUtil::recvFileAndWrite(const char *filename, SOCKET sock)
     package.footer = 0;
 
     print_c("Opening the file for writing ...", 14);
-    // cout << "Opening the file for writing ..." << endl;
     ofstream ofile(filename, ios::out | ios::binary); // 以二进制方式打开文件
 
     if (!ofile)
     {
         print_c("Error opening the file to write :(", 12);
-        // cout << "Error opening the file to write :(" << endl;
         return false;
     }
     // 接收文件并写入
@@ -125,7 +116,6 @@ bool FtpUtil::recvFileAndWrite(const char *filename, SOCKET sock)
         }
     }
     print_c("File received successfully!", 11);
-    // cout << "File received successfully!" << endl;
     ofile.close();
     return true;
 }
@@ -138,7 +128,6 @@ FtpClient::FtpClient()
     sock = FtpUtil::createSocket();
     print_c("Socket created", 14);
     print_c("Please enter the hostname to connect to: ", 14, true);
-    // cout << "Please enter the hostname to connect to: ";
     cin >> remoteHostname;
 
     // 获取远程主机地址
@@ -152,7 +141,6 @@ FtpClient::FtpClient()
         error("connect failed", WSAGetLastError());
     }
     print_c("Connected to the server successfully", 11);
-    // cout << "Connected to the server successfully" << endl;
 }
 
 FtpClient::~FtpClient()
@@ -168,7 +156,6 @@ bool FtpClient::run()
     while (running)
     {
         print_c("Would you like to LIST(0), UPLOAD (1) or DOWNLOAD (2) or EXIT (else)?", 14);
-        // cout << "Would you like to UPLOAD (1) or DOWNLOAD (2) or EXIT (else)?" << endl;
         print_c("ftp> ", 5, true);
         cin >> file.opId;
         // 如果输入的不是上传指令或下载指令，则退出
@@ -199,14 +186,12 @@ bool FtpClient::run()
 
         // 接收服务器的响应
         print_c("Waiting for the server's response ...", 14);
-        // cout << "Waiting for the server's response ..." << endl;
         char rdyState[2];
         debug = recv(sock, rdyState, sizeof(rdyState), 0);
         if (debug == SOCKET_ERROR)
             error("recv failed", WSAGetLastError());
         else
             print_c("Server's response :" + string(rdyState), 11);
-        // cout << "Server's response :" << rdyState << endl;
 
         switch (file.opId)
         {
@@ -225,11 +210,9 @@ bool FtpClient::run()
         }
         print_c("Would you like to operate again? (y/n)", 14);
         print_c("ftp> ", 5, true);
-        // cout << "Would you like to operate again? (y/n)" << endl;
         cin >> rdyState;
         if (strcmp(rdyState, "y") != 0)
             running = false;
-        // send(sock, rdyState, sizeof(rdyState), 0);
         if (strcmp(rdyState, "n") == 0)
             quit();
     }
@@ -239,11 +222,9 @@ bool FtpClient::run()
 bool FtpClient::down(File &f)
 {
     print_c("Downloading the file ...", 14);
-    // cout << "Downloading the file ..." << endl;
     if (!FtpUtil::recvFileAndWrite(f.filename, sock))
     {
         print_c("Error receiving the file :(", 12);
-        // cout << "Error receiving the file :(" << endl;
         return false;
     }
     return true;
@@ -252,17 +233,14 @@ bool FtpClient::down(File &f)
 bool FtpClient::up(File &f)
 {
     print_c("Uploading the file ...", 14);
-    // cout << "Uploading the file ..." << endl;
     if (!FtpUtil::fileExists(f.filename))
     {
         print_c("File does not exist :(", 12);
-        // cout << "File does not exist :(" << endl;
         return false;
     }
     if (!FtpUtil::readFileAndSend(f.filename, sock))
     {
         print_c("Error sending the file :(", 12);
-        // cout << "Error sending the file :(" << endl;
         return false;
     }
     return true;
@@ -288,11 +266,9 @@ bool FtpClient::list()
 bool FtpClient::quit()
 {
     print_c("Quitting ...", 14);
-    // cout << "Quitting ..." << endl;
     if (shutdown(sock, 2) == SOCKET_ERROR)
     {
         print_c("shutdown failed: " + WSAGetLastError(), 12);
-        // printf("shutdown failed: %d\n", WSAGetLastError());
         closesocket(sock);
         WSACleanup();
         return 1;
